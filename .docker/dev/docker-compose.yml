@@ -1,0 +1,60 @@
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        USER_UID: ${UID:-1000}
+        USER_GID: ${GID:-1000}
+    image: reqx-dev:latest
+    container_name: reqx-dev
+    hostname: reqx-dev
+    
+    volumes:
+      - ../../:/workspace:cached
+      - cargo-registry:/home/developer/.cargo/registry
+      - cargo-git:/home/developer/.cargo/git
+      - target-cache:/workspace/target
+      - ~/.gitconfig:/home/developer/.gitconfig:ro
+    
+    environment:
+      - RUST_BACKTRACE=1
+      - RUST_LOG=debug
+      - CARGO_INCREMENTAL=1
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    
+    stdin_open: true
+    tty: true
+    
+    networks:
+      - reqx-network
+    
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 2G
+
+  mock-api:
+    build:
+      context: ../mock-api
+    container_name: reqx-mock-api
+    ports:
+      - "3000:3000"
+    networks:
+      - reqx-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+volumes:
+  cargo-registry:
+  cargo-git:
+  target-cache:
+
+networks:
+  reqx-network:
+    driver: bridge

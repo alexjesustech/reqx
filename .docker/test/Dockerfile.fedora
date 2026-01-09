@@ -1,0 +1,5 @@
+FROM fedora:40
+RUN dnf install -y ca-certificates curl && dnf clean all
+COPY --from=reqx:alpine /reqx /usr/local/bin/reqx
+WORKDIR /workspace
+CMD ["sh", "-c", "reqx run ./tests/smoke --env=docker --output=junit --output-file=/results/fedora.xml"]

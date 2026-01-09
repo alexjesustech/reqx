@@ -1,0 +1,89 @@
+[package]
+name = "reqx"
+version = "0.1.0"
+edition = "2021"
+authors = ["reqx contributors"]
+description = "CLI-first API client for developers. Git-native, local-first, privacy-focused."
+license = "MPL-2.0"
+repository = "https://github.com/reqx/reqx"
+homepage = "https://reqx.dev"
+documentation = "https://docs.reqx.dev"
+readme = "README.md"
+keywords = ["api", "http", "cli", "rest", "testing"]
+categories = ["command-line-utilities", "development-tools", "web-programming"]
+rust-version = "1.75"
+
+[features]
+default = []
+integration = []
+
+[dependencies]
+# CLI
+clap = { version = "4.4", features = ["derive", "env", "wrap_help"] }
+clap_complete = "4.4"
+
+# HTTP Client
+reqwest = { version = "0.11", features = ["json", "rustls-tls", "gzip", "brotli", "cookies"] }
+tokio = { version = "1.35", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+
+# Parser
+logos = "0.14"
+thiserror = "1.0"
+
+# Output
+colored = "2.1"
+tabled = "0.15"
+indicatif = "0.17"
+
+# Utilities
+uuid = { version = "1.6", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+glob = "0.3"
+regex = "1.10"
+jsonpath-rust = "0.5"
+dirs = "5.0"
+url = "2.5"
+base64 = "0.21"
+
+# Error handling
+anyhow = "1.0"
+
+# Async
+futures = "0.3"
+async-trait = "0.1"
+
+# File watching
+notify = "6.1"
+notify-debouncer-mini = "0.4"
+
+[dev-dependencies]
+assert_cmd = "2.0"
+predicates = "3.0"
+tempfile = "3.9"
+wiremock = "0.5"
+criterion = "0.5"
+pretty_assertions = "1.4"
+
+[[bin]]
+name = "reqx"
+path = "src/main.rs"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+opt-level = 3
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+[[bench]]
+name = "parser_benchmark"
+harness = false

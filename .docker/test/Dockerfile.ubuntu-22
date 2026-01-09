@@ -1,0 +1,5 @@
+FROM ubuntu:22.04
+RUN apt-get update && apt-get install -y ca-certificates curl && rm -rf /var/lib/apt/lists/*
+COPY --from=reqx:alpine /reqx /usr/local/bin/reqx
+WORKDIR /workspace
+CMD ["sh", "-c", "reqx run ./tests/smoke --env=docker --output=junit --output-file=/results/ubuntu-22.xml"]

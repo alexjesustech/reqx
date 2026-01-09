@@ -1,0 +1,90 @@
+services:
+  mock-api:
+    build:
+      context: ../mock-api
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+
+  test-ubuntu-22:
+    build:
+      context: .
+      dockerfile: Dockerfile.ubuntu-22
+    depends_on:
+      mock-api:
+        condition: service_healthy
+    volumes:
+      - ../../:/workspace:ro
+      - ./results:/results
+    environment:
+      - REQX_TEST_API_URL=http://mock-api:3000
+    networks:
+      - test-network
+
+  test-ubuntu-24:
+    build:
+      context: .
+      dockerfile: Dockerfile.ubuntu-24
+    depends_on:
+      mock-api:
+        condition: service_healthy
+    volumes:
+      - ../../:/workspace:ro
+      - ./results:/results
+    environment:
+      - REQX_TEST_API_URL=http://mock-api:3000
+    networks:
+      - test-network
+
+  test-debian-12:
+    build:
+      context: .
+      dockerfile: Dockerfile.debian-12
+    depends_on:
+      mock-api:
+        condition: service_healthy
+    volumes:
+      - ../../:/workspace:ro
+      - ./results:/results
+    environment:
+      - REQX_TEST_API_URL=http://mock-api:3000
+    networks:
+      - test-network
+
+  test-alpine:
+    build:
+      context: .
+      dockerfile: Dockerfile.alpine
+    depends_on:
+      mock-api:
+        condition: service_healthy
+    volumes:
+      - ../../:/workspace:ro
+      - ./results:/results
+    environment:
+      - REQX_TEST_API_URL=http://mock-api:3000
+    networks:
+      - test-network
+
+  test-fedora:
+    build:
+      context: .
+      dockerfile: Dockerfile.fedora
+    depends_on:
+      mock-api:
+        condition: service_healthy
+    volumes:
+      - ../../:/workspace:ro
+      - ./results:/results
+    environment:
+      - REQX_TEST_API_URL=http://mock-api:3000
+    networks:
+      - test-network
+
+networks:
+  test-network:
+    driver: bridge

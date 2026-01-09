@@ -1,0 +1,28 @@
+PackageIdentifier: reqx.reqx
+PackageVersion: 0.1.0
+PackageLocale: en-US
+Publisher: reqx
+PublisherUrl: https://reqx.dev
+PublisherSupportUrl: https://github.com/reqx/reqx/issues
+PackageName: reqx
+PackageUrl: https://github.com/reqx/reqx
+License: MPL-2.0
+LicenseUrl: https://github.com/reqx/reqx/blob/main/LICENSE
+ShortDescription: CLI-first API client for developers
+Description: |
+  reqx is a CLI-first API client for developers.
+  Git-native, local-first, privacy-focused.
+Tags:
+  - api
+  - cli
+  - http
+  - rest
+  - testing
+  - developer-tools
+Installers:
+  - Architecture: x64
+    InstallerType: portable
+    InstallerUrl: https://github.com/reqx/reqx/releases/download/v0.1.0/reqx-x86_64-pc-windows-msvc.zip
+    InstallerSha256: PLACEHOLDER
+ManifestType: singleton
+ManifestVersion: 1.6.0

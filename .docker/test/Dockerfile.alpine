@@ -1,0 +1,5 @@
+FROM alpine:3.19
+RUN apk add --no-cache ca-certificates curl
+COPY --from=reqx:alpine /reqx /usr/local/bin/reqx
+WORKDIR /workspace
+CMD ["sh", "-c", "reqx run ./tests/smoke --env=docker --output=junit --output-file=/results/alpine.xml"]
