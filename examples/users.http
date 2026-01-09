@@ -1,25 +1,25 @@
 ### List all users (requires auth)
-GET http://localhost:3000/api/users
+GET http://localhost:3333/api/users
 Authorization: Bearer {{token}}
 
 ### List users with pagination
-GET http://localhost:3000/api/users?page=1&limit=2
+GET http://localhost:3333/api/users?page=1&limit=2
 Authorization: Bearer {{token}}
 
 ### Filter users by role
-GET http://localhost:3000/api/users?role=admin
+GET http://localhost:3333/api/users?role=admin
 Authorization: Bearer {{token}}
 
 ### Search users
-GET http://localhost:3000/api/users?search=alice
+GET http://localhost:3333/api/users?search=alice
 Authorization: Bearer {{token}}
 
 ### Get user by ID
-GET http://localhost:3000/api/users/1
+GET http://localhost:3333/api/users/1
 Authorization: Bearer {{token}}
 
 ### Create new user (admin only)
-POST http://localhost:3000/api/users
+POST http://localhost:3333/api/users
 Content-Type: application/json
 Authorization: Bearer {{token}}
 
@@ -30,7 +30,7 @@ Authorization: Bearer {{token}}
 }
 
 ### Update user (PUT - full replace)
-PUT http://localhost:3000/api/users/2
+PUT http://localhost:3333/api/users/2
 Content-Type: application/json
 Authorization: Bearer {{token}}
 
@@ -41,7 +41,7 @@ Authorization: Bearer {{token}}
 }
 
 ### Update user (PATCH - partial)
-PATCH http://localhost:3000/api/users/2
+PATCH http://localhost:3333/api/users/2
 Content-Type: application/json
 Authorization: Bearer {{token}}
 
@@ -50,5 +50,5 @@ Authorization: Bearer {{token}}
 }
 
 ### Delete user (admin only)
-DELETE http://localhost:3000/api/users/3
+DELETE http://localhost:3333/api/users/3
 Authorization: Bearer {{token}}

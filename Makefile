@@ -87,8 +87,8 @@ build-all: build-static build-windows
 
 mock-api:
 	docker compose -f docker-compose.test.yml up -d
-	@echo "Mock API running at http://localhost:3000"
-	@echo "Health check: http://localhost:3000/health"
+	@echo "Mock API running at http://localhost:3333"
+	@echo "Health check: http://localhost:3333/health"
 
 mock-api-down:
 	docker compose -f docker-compose.test.yml down

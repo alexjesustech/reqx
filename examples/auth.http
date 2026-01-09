@@ -1,5 +1,5 @@
 ### Login - Get access token
-POST http://localhost:3000/auth/login
+POST http://localhost:3333/auth/login
 Content-Type: application/json
 
 {
@@ -8,7 +8,7 @@ Content-Type: application/json
 }
 
 ### Login as regular user
-POST http://localhost:3000/auth/login
+POST http://localhost:3333/auth/login
 Content-Type: application/json
 
 {
@@ -17,9 +17,9 @@ Content-Type: application/json
 }
 
 ### Get current user (requires auth)
-GET http://localhost:3000/auth/me
+GET http://localhost:3333/auth/me
 Authorization: Bearer {{token}}
 
 ### Logout
-POST http://localhost:3000/auth/logout
+POST http://localhost:3333/auth/logout
 Authorization: Bearer {{token}}

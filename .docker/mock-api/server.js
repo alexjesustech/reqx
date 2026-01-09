@@ -48,7 +48,7 @@ const paginate = (arr, query) => {
 const routes = {
   // Health check
   'GET /health': () => ({
-    status: 'healthy',
+    state: 'healthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
   }),
