@@ -1,0 +1,21 @@
+### List all posts (public)
+GET http://localhost:3000/api/posts
+
+### List posts with pagination
+GET http://localhost:3000/api/posts?page=1&limit=2
+
+### Filter posts by user
+GET http://localhost:3000/api/posts?userId=1
+
+### Get post by ID
+GET http://localhost:3000/api/posts/1
+
+### Create new post (requires auth)
+POST http://localhost:3000/api/posts
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "My New Post",
+  "body": "This is the content of my new post."
+}

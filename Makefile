@@ -1,4 +1,4 @@
-.PHONY: help dev build build-release test lint clean install
+.PHONY: help dev build build-release test lint clean install mock-api mock-api-down mock-api-logs mock-api-rebuild
 
 # Default target
 help:
@@ -17,6 +17,11 @@ help:
 	@echo "  build-static Build static binary (musl)"
 	@echo "  build-windows Build Windows binary (cross-compile)"
 	@echo "  build-all    Build for all platforms"
+	@echo ""
+	@echo "Mock API:"
+	@echo "  mock-api     Start mock API server (Docker)"
+	@echo "  mock-api-down Stop mock API server"
+	@echo "  mock-api-logs View mock API logs"
 	@echo ""
 	@echo "Test:"
 	@echo "  test         Run unit tests"
@@ -75,6 +80,24 @@ build-all: build-static build-windows
 	@echo ""
 	@echo "Built binaries:"
 	@ls -la ./dist/
+
+# ============================================================================
+# Mock API (for testing)
+# ============================================================================
+
+mock-api:
+	docker compose -f docker-compose.test.yml up -d
+	@echo "Mock API running at http://localhost:3000"
+	@echo "Health check: http://localhost:3000/health"
+
+mock-api-down:
+	docker compose -f docker-compose.test.yml down
+
+mock-api-logs:
+	docker compose -f docker-compose.test.yml logs -f
+
+mock-api-rebuild:
+	docker compose -f docker-compose.test.yml up -d --build
 
 # ============================================================================
 # Test

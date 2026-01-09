@@ -1,0 +1,48 @@
+### Health check
+GET http://localhost:3000/health
+
+### Echo GET request with query params
+GET http://localhost:3000/echo?foo=bar&baz=qux
+
+### Echo POST request with body
+POST http://localhost:3000/echo
+Content-Type: application/json
+
+{
+  "message": "Hello World",
+  "data": [1, 2, 3]
+}
+
+### Get all received headers
+GET http://localhost:3000/api/headers
+X-Custom-Header: custom-value
+X-Request-ID: 12345
+
+### Test JSON parsing
+POST http://localhost:3000/api/json
+Content-Type: application/json
+
+{
+  "nested": {
+    "value": true
+  },
+  "array": [1, 2, 3]
+}
+
+### Delayed response (2 seconds)
+GET http://localhost:3000/api/delay/2000
+
+### Custom status code (404)
+GET http://localhost:3000/api/status/404
+
+### Custom status code (500)
+GET http://localhost:3000/api/status/500
+
+### Redirect response
+GET http://localhost:3000/api/redirect
+
+### XML response
+GET http://localhost:3000/api/xml
+
+### Plain text response
+GET http://localhost:3000/api/text
