@@ -1,4 +1,4 @@
-FROM node:22-alpine
+FROM harbor.local:5000/dockerhub-cache/library/node:20-alpine
 
 WORKDIR /app
 
