@@ -1,0 +1,23 @@
+# reqx
+
+> CLI-first API client for developers — Git-native, local-first,
+> privacy-focused. Written in Rust; API collections are plain-text `.reqx`
+> (TOML) files that are versioned, branched and merged just like code.
+
+## Documentation
+
+- [README](README.md): overview, installation, quick start, `.reqx` file
+  format, environments, CI/CD integration and CLI commands
+- [Contributing guide](CONTRIBUTING.md): development setup and pull request
+  workflow
+- [Agent guide](AGENTS.md): build/test commands, layout and conventions for
+  coding agents
+- [Changelog](CHANGELOG.md): notable changes per release
+
+## Optional
+
+- [Getting Started](https://docs.reqx.dev/getting-started): hosted
+  documentation
+- [File Format Reference](https://docs.reqx.dev/reference/file-format)
+- [CLI Reference](https://docs.reqx.dev/reference/cli)
+- [CI/CD Guide](https://docs.reqx.dev/guides/ci-cd)

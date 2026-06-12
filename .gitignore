@@ -1,2 +1,6 @@
 .idea/
-.claude/settings.local.json
+
+# Agent tooling is local-only in this public repository
+.claude/
+.opencode/
+.agents/
