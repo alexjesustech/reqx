@@ -8,6 +8,11 @@
 
 While others build 'platforms' to justify higher costs, reqx stays focused on what matters: helping developers test APIs efficiently. Sometimes, the best solution is the one that doesn't try to do everything.
 
+## Status
+
+`0.1.0` — early development. The CLI is functional, but the public interface may still change
+([SemVer](https://semver.org/) `0.y.z` = unstable public API).
+
 ## Features
 
 - **Git-native**: API collections are versioned, branched, and merged just like code
