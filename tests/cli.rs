@@ -236,6 +236,48 @@ async fn run_wildcard_asserts_all_elements() {
         .code(1);
 }
 
+#[tokio::test]
+async fn run_parallel_executes_a_directory() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/a"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/b"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&server)
+        .await;
+
+    let dir = TempDir::new().unwrap();
+    write_reqx(
+        dir.path(),
+        "a.reqx",
+        &format!(
+            "[request]\nmethod = \"GET\"\nurl = \"{}/a\"\n\n[assert]\nstatus = \"200\"\n",
+            server.uri()
+        ),
+    );
+    write_reqx(
+        dir.path(),
+        "b.reqx",
+        &format!(
+            "[request]\nmethod = \"GET\"\nurl = \"{}/b\"\n\n[assert]\nstatus = \"200\"\n",
+            server.uri()
+        ),
+    );
+
+    reqx()
+        .arg("run")
+        .arg(dir.path())
+        .arg("--parallel")
+        .arg("4")
+        .current_dir(dir.path())
+        .assert()
+        .success();
+}
+
 #[test]
 fn validate_accepts_a_well_formed_file() {
     let dir = TempDir::new().unwrap();

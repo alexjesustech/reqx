@@ -11,6 +11,7 @@ use crate::parser::{parse_file, ReqxFile};
 use crate::runtime::{ExecutionContext, ExecutionResult};
 use anyhow::{Context, Result};
 use colored::Colorize;
+use futures::StreamExt;
 use glob::glob;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -89,8 +90,8 @@ pub async fn execute(options: RunOptions) -> Result<()> {
         config.http.clone(),
     )?);
 
-    // Create execution context
-    let mut context = ExecutionContext::new(config);
+    // Base execution context (config vars + CLI vars).
+    let mut context = ExecutionContext::new(config.clone());
 
     // Add CLI variables
     for (key, value) in &options.var {
@@ -102,7 +103,7 @@ pub async fn execute(options: RunOptions) -> Result<()> {
     let mut results: Vec<ExecutionResult> = Vec::new();
 
     if options.parallel <= 1 {
-        // Sequential execution
+        // Sequential — [post-response] captures flow into the following requests.
         for (path, reqx_file) in parsed_files {
             let result = execute_request(&client, &mut context, &path, &reqx_file).await;
 
@@ -118,12 +119,40 @@ pub async fn execute(options: RunOptions) -> Result<()> {
             }
         }
     } else {
-        // TODO: Parallel execution
-        // For now, fall back to sequential
-        for (path, reqx_file) in parsed_files {
-            let result = execute_request(&client, &mut context, &path, &reqx_file).await;
-            results.push(result);
+        // Parallel — each request runs with an independent copy of the base
+        // variables, so [post-response] capture does NOT cross requests.
+        // Output order is preserved by the original file index.
+        if parsed_files
+            .iter()
+            .any(|(_, f)| !f.post_response.is_empty())
+        {
+            eprintln!(
+                "{}",
+                "warning: --parallel does not share [post-response] variables across requests; \
+                 run sequentially if a request depends on a previous capture"
+                    .yellow()
+            );
         }
+
+        let base_vars = context.variables.clone();
+        let concurrency = options.parallel;
+        let mut indexed: Vec<(usize, ExecutionResult)> =
+            futures::stream::iter(parsed_files.into_iter().enumerate())
+                .map(|(idx, (path, reqx_file))| {
+                    let client = client.clone();
+                    let mut local = ExecutionContext::new(config.clone());
+                    local.variables = base_vars.clone();
+                    async move {
+                        let result = execute_request(&client, &mut local, &path, &reqx_file).await;
+                        (idx, result)
+                    }
+                })
+                .buffer_unordered(concurrency)
+                .collect()
+                .await;
+
+        indexed.sort_by_key(|(idx, _)| *idx);
+        results = indexed.into_iter().map(|(_, r)| r).collect();
     }
 
     let total_duration = start_time.elapsed();
