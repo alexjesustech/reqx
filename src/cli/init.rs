@@ -13,9 +13,7 @@ pub async fn execute(force: bool) -> Result<()> {
     let reqx_dir = Path::new(".reqx");
 
     if reqx_dir.exists() && !force {
-        anyhow::bail!(
-            "Directory .reqx already exists. Use --force to overwrite."
-        );
+        anyhow::bail!("Directory .reqx already exists. Use --force to overwrite.");
     }
 
     println!("{}", "Initializing reqx collection...".cyan());
@@ -43,8 +41,7 @@ retries = 0
 retry_delay = 1000
 "#;
 
-    fs::write(".reqx/config.toml", config_content)
-        .context("Failed to create config.toml")?;
+    fs::write(".reqx/config.toml", config_content).context("Failed to create config.toml")?;
 
     // Create local environment
     let local_env = r#"# Local development environment
@@ -55,8 +52,7 @@ base_url = "http://localhost:3000"
 # access_token = "${API_TOKEN}"  # Uncomment and set env var
 "#;
 
-    fs::write(".reqx/environments/local.toml", local_env)
-        .context("Failed to create local.toml")?;
+    fs::write(".reqx/environments/local.toml", local_env).context("Failed to create local.toml")?;
 
     // Create CI environment
     let ci_env = r#"# CI/CD environment
@@ -67,8 +63,7 @@ base_url = "${API_BASE_URL}"
 access_token = "${API_TOKEN}"
 "#;
 
-    fs::write(".reqx/environments/ci.toml", ci_env)
-        .context("Failed to create ci.toml")?;
+    fs::write(".reqx/environments/ci.toml", ci_env).context("Failed to create ci.toml")?;
 
     // Create example request
     let example_request = r#"# Example API request

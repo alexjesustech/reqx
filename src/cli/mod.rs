@@ -11,6 +11,7 @@ pub mod health;
 pub mod import;
 pub mod init;
 pub mod run;
+pub mod secret;
 pub mod validate;
 pub mod watch;
 
@@ -182,6 +183,41 @@ pub enum Commands {
         /// Shell to generate completions for
         #[arg(value_enum)]
         shell: Shell,
+    },
+
+    /// Manage encrypted secrets (referenced as {{secret.NAME}})
+    Secret {
+        #[command(subcommand)]
+        action: SecretAction,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum SecretAction {
+    /// Store a secret (value from --value or stdin)
+    Set {
+        /// Secret name
+        name: String,
+        /// Environment store
+        #[arg(short, long, default_value = "default")]
+        env: String,
+        /// Secret value (omit to read from stdin)
+        #[arg(long)]
+        value: Option<String>,
+    },
+    /// List secret names (never values)
+    List {
+        /// Environment store
+        #[arg(short, long, default_value = "default")]
+        env: String,
+    },
+    /// Remove a secret
+    Rm {
+        /// Secret name
+        name: String,
+        /// Environment store
+        #[arg(short, long, default_value = "default")]
+        env: String,
     },
 }
 

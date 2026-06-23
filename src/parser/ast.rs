@@ -22,10 +22,7 @@ pub enum Expression {
         right: Box<Expression>,
     },
     /// Function call (e.g., length, exists)
-    FunctionCall {
-        name: String,
-        args: Vec<Expression>,
-    },
+    FunctionCall { name: String, args: Vec<Expression> },
     /// Pipe expression (e.g., res.body.data | length)
     Pipe {
         input: Box<Expression>,
@@ -50,10 +47,10 @@ pub struct PathExpr {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PathRoot {
-    Res,      // Response
-    Body,     // res.body shorthand
-    Headers,  // res.headers shorthand
-    Status,   // res.status shorthand
+    Res,     // Response
+    Body,    // res.body shorthand
+    Headers, // res.headers shorthand
+    Status,  // res.status shorthand
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

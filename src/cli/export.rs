@@ -101,9 +101,7 @@ async fn export_openapi(path: &PathBuf) -> Result<()> {
                     }
                 });
 
-                let path_item = paths
-                    .entry(path_part)
-                    .or_insert(serde_json::json!({}));
+                let path_item = paths.entry(path_part).or_insert(serde_json::json!({}));
 
                 if let serde_json::Value::Object(ref mut obj) = path_item {
                     obj.insert(method, operation);

@@ -17,9 +17,9 @@ pub async fn execute(action: ConfigAction) -> Result<()> {
         ConfigAction::Get { key } => {
             let config = fs::read_to_string(CONFIG_PATH)
                 .context("Failed to read config file. Run 'reqx init' first.")?;
-            
+
             let parsed: toml::Value = toml::from_str(&config)?;
-            
+
             if let Some(value) = get_nested_value(&parsed, &key) {
                 println!("{}", value);
             } else {
@@ -29,25 +29,25 @@ pub async fn execute(action: ConfigAction) -> Result<()> {
         ConfigAction::Set { key, value } => {
             let config = fs::read_to_string(CONFIG_PATH)
                 .context("Failed to read config file. Run 'reqx init' first.")?;
-            
+
             let mut parsed: toml::Value = toml::from_str(&config)?;
-            
+
             set_nested_value(&mut parsed, &key, &value)?;
-            
+
             let output = toml::to_string_pretty(&parsed)?;
             fs::write(CONFIG_PATH, output)?;
-            
+
             println!("{} = {}", key.cyan(), value.green());
         }
         ConfigAction::List => {
             let config = fs::read_to_string(CONFIG_PATH)
                 .context("Failed to read config file. Run 'reqx init' first.")?;
-            
+
             println!("{}", config);
         }
         ConfigAction::Edit => {
             let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
-            
+
             Command::new(&editor)
                 .arg(CONFIG_PATH)
                 .status()

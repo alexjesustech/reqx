@@ -5,12 +5,15 @@
 //! Execute API requests
 
 use crate::config::Config;
+use crate::error::exit;
 use crate::http::Client;
-use crate::output::{OutputFormatter, TableFormatter, JsonFormatter, JunitFormatter, TapFormatter};
+use crate::output::{JsonFormatter, JunitFormatter, OutputFormatter, TableFormatter, TapFormatter};
 use crate::parser::{parse_file, ReqxFile};
 use crate::runtime::{ExecutionContext, ExecutionResult};
+use crate::secret;
 use anyhow::{Context, Result};
 use colored::Colorize;
+use futures::StreamExt;
 use glob::glob;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -38,12 +41,22 @@ pub struct RunOptions {
 }
 
 pub async fn execute(options: RunOptions) -> Result<()> {
-    // Load configuration
-    let config = Config::load(options.env.as_deref())?;
-    
+    // Load configuration (config/environment problems are exit code 4).
+    let config = match Config::load(options.env.as_deref()) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("{}: {}", "config error".red(), e);
+            std::process::exit(exit::CONFIG_ERROR);
+        }
+    };
+
     // Discover files to run
-    let files = discover_files(&options.path, options.filter.as_deref(), options.exclude.as_deref())?;
-    
+    let files = discover_files(
+        &options.path,
+        options.filter.as_deref(),
+        options.exclude.as_deref(),
+    )?;
+
     if files.is_empty() {
         println!("{}", "No .reqx files found".yellow());
         return Ok(());
@@ -63,7 +76,7 @@ pub async fn execute(options: RunOptions) -> Result<()> {
             Err(e) => {
                 eprintln!("{}: {}", file_path.display().to_string().red(), e);
                 if options.fail_fast {
-                    std::process::exit(3);
+                    std::process::exit(exit::PARSE_ERROR);
                 }
             }
         }
@@ -85,9 +98,19 @@ pub async fn execute(options: RunOptions) -> Result<()> {
         config.http.clone(),
     )?);
 
-    // Create execution context
-    let mut context = ExecutionContext::new(config);
-    
+    // Decrypted secrets for {{secret.NAME}} (empty if no store / no passphrase).
+    let secret_env = options.env.as_deref().unwrap_or("default");
+    let secrets = secret::load(secret_env).unwrap_or_default();
+    let secret_values: Vec<String> = secrets
+        .values()
+        .filter(|v| !v.is_empty())
+        .cloned()
+        .collect();
+
+    // Base execution context (config vars + CLI vars + secrets).
+    let mut context = ExecutionContext::new(config.clone());
+    context.secrets = secrets.clone().into_iter().collect();
+
     // Add CLI variables
     for (key, value) in &options.var {
         context.set_variable(key.clone(), value.clone());
@@ -98,28 +121,57 @@ pub async fn execute(options: RunOptions) -> Result<()> {
     let mut results: Vec<ExecutionResult> = Vec::new();
 
     if options.parallel <= 1 {
-        // Sequential execution
+        // Sequential — [post-response] captures flow into the following requests.
         for (path, reqx_file) in parsed_files {
             let result = execute_request(&client, &mut context, &path, &reqx_file).await;
-            
+
             if options.verbose {
-                print_result_verbose(&result);
+                print_result_verbose(&result, &secret_values);
             }
-            
+
             let failed = result.failed;
             results.push(result);
-            
+
             if failed && options.fail_fast {
                 break;
             }
         }
     } else {
-        // TODO: Parallel execution
-        // For now, fall back to sequential
-        for (path, reqx_file) in parsed_files {
-            let result = execute_request(&client, &mut context, &path, &reqx_file).await;
-            results.push(result);
+        // Parallel — each request runs with an independent copy of the base
+        // variables, so [post-response] capture does NOT cross requests.
+        // Output order is preserved by the original file index.
+        if parsed_files
+            .iter()
+            .any(|(_, f)| !f.post_response.is_empty())
+        {
+            eprintln!(
+                "{}",
+                "warning: --parallel does not share [post-response] variables across requests; \
+                 run sequentially if a request depends on a previous capture"
+                    .yellow()
+            );
         }
+
+        let base_vars = context.variables.clone();
+        let concurrency = options.parallel;
+        let mut indexed: Vec<(usize, ExecutionResult)> =
+            futures::stream::iter(parsed_files.into_iter().enumerate())
+                .map(|(idx, (path, reqx_file))| {
+                    let client = client.clone();
+                    let mut local = ExecutionContext::new(config.clone());
+                    local.variables = base_vars.clone();
+                    local.secrets = secrets.clone().into_iter().collect();
+                    async move {
+                        let result = execute_request(&client, &mut local, &path, &reqx_file).await;
+                        (idx, result)
+                    }
+                })
+                .buffer_unordered(concurrency)
+                .collect()
+                .await;
+
+        indexed.sort_by_key(|(idx, _)| *idx);
+        results = indexed.into_iter().map(|(_, r)| r).collect();
     }
 
     let total_duration = start_time.elapsed();
@@ -131,13 +183,13 @@ pub async fn execute(options: RunOptions) -> Result<()> {
         OutputFormat::Junit => Box::new(JunitFormatter::new()),
         OutputFormat::Tap => Box::new(TapFormatter::new()),
         OutputFormat::Silent => {
-            // Just return exit code
-            let failed = results.iter().any(|r| r.failed);
-            std::process::exit(if failed { 1 } else { 0 });
+            // Just return exit code (execution errors outrank assertion failures).
+            std::process::exit(exit_code_for(&results));
         }
     };
 
-    let output = formatter.format(&results, total_duration);
+    // Mask any secret value that may have surfaced in URLs/messages.
+    let output = mask_secrets(formatter.format(&results, total_duration), &secret_values);
 
     if let Some(output_file) = options.output_file {
         std::fs::write(&output_file, &output)
@@ -147,15 +199,25 @@ pub async fn execute(options: RunOptions) -> Result<()> {
         println!("{}", output);
     }
 
-    // Exit with appropriate code
-    let passed = results.iter().filter(|r| !r.failed).count();
-    let failed = results.iter().filter(|r| r.failed).count();
-
-    if failed > 0 {
-        std::process::exit(1);
+    // Exit with the CI-contract code (execution error > assertion failure).
+    let code = exit_code_for(&results);
+    if code != exit::OK {
+        std::process::exit(code);
     }
 
     Ok(())
+}
+
+/// Map a run's results to the exit-code contract: an execution error (a
+/// request that could not run) outranks an assertion failure.
+fn exit_code_for(results: &[ExecutionResult]) -> i32 {
+    if results.iter().any(|r| r.error.is_some()) {
+        exit::EXECUTION_ERROR
+    } else if results.iter().any(|r| r.failed) {
+        exit::ASSERTION_FAILED
+    } else {
+        exit::OK
+    }
 }
 
 fn discover_files(
@@ -181,7 +243,7 @@ fn discover_files(
                             continue;
                         }
                     }
-                    
+
                     // Apply exclude
                     if let Some(exclude_pattern) = exclude {
                         let glob_pattern = glob::Pattern::new(exclude_pattern)?;
@@ -189,7 +251,7 @@ fn discover_files(
                             continue;
                         }
                     }
-                    
+
                     files.push(file_path);
                 }
                 Err(e) => {
@@ -210,7 +272,7 @@ async fn execute_request(
     reqx_file: &ReqxFile,
 ) -> ExecutionResult {
     let start = Instant::now();
-    
+
     // Interpolate variables
     let interpolated = match context.interpolate(reqx_file) {
         Ok(r) => r,
@@ -268,18 +330,28 @@ async fn execute_request(
     }
 }
 
-fn print_result_verbose(result: &ExecutionResult) {
+/// Replace any secret value with `***` so they never reach stdout/files.
+fn mask_secrets(mut s: String, secrets: &[String]) -> String {
+    for v in secrets {
+        if !v.is_empty() {
+            s = s.replace(v, "***");
+        }
+    }
+    s
+}
+
+fn print_result_verbose(result: &ExecutionResult, secrets: &[String]) {
     let status_str = result
         .status
         .map(|s| s.to_string())
         .unwrap_or_else(|| "ERR".to_string());
-    
-    let color = if result.failed { "red" } else { "green" };
-    
+
+    let url = mask_secrets(result.url.clone(), secrets);
+
     println!(
         "{} {} {} ({:?})",
         result.method,
-        result.url,
+        url,
         if result.failed {
             status_str.red()
         } else {

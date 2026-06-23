@@ -89,8 +89,7 @@ impl Config {
         let config_path = Path::new(".reqx/config.toml");
 
         let mut config = if config_path.exists() {
-            let content = fs::read_to_string(config_path)
-                .context("Failed to read config.toml")?;
+            let content = fs::read_to_string(config_path).context("Failed to read config.toml")?;
             toml::from_str(&content).context("Failed to parse config.toml")?
         } else {
             Config::default()
@@ -101,11 +100,14 @@ impl Config {
             let env_path = Path::new(".reqx/environments").join(format!("{}.toml", env_name));
 
             if env_path.exists() {
-                let env_content = fs::read_to_string(&env_path)
-                    .with_context(|| format!("Failed to read environment file: {}", env_path.display()))?;
+                let env_content = fs::read_to_string(&env_path).with_context(|| {
+                    format!("Failed to read environment file: {}", env_path.display())
+                })?;
 
-                let env_config: EnvironmentConfig = toml::from_str(&env_content)
-                    .with_context(|| format!("Failed to parse environment file: {}", env_path.display()))?;
+                let env_config: EnvironmentConfig =
+                    toml::from_str(&env_content).with_context(|| {
+                        format!("Failed to parse environment file: {}", env_path.display())
+                    })?;
 
                 // Merge environment variables
                 for (key, value) in env_config.variables {
@@ -113,7 +115,11 @@ impl Config {
                     config.variables.insert(key, resolved);
                 }
             } else {
-                anyhow::bail!("Environment '{}' not found. Create .reqx/environments/{}.toml", env_name, env_name);
+                anyhow::bail!(
+                    "Environment '{}' not found. Create .reqx/environments/{}.toml",
+                    env_name,
+                    env_name
+                );
             }
         }
 
