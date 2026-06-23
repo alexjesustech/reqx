@@ -13,6 +13,7 @@ mod http;
 mod output;
 mod parser;
 mod runtime;
+mod secret;
 
 use anyhow::Result;
 use clap::Parser;
@@ -97,6 +98,9 @@ async fn main() -> Result<()> {
         }
         Commands::Completions { shell } => {
             cli::completions::execute(shell);
+        }
+        Commands::Secret { action } => {
+            cli::secret::execute(action)?;
         }
     }
 

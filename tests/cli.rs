@@ -313,6 +313,80 @@ fn run_missing_environment_exits_4() {
         .code(4);
 }
 
+#[tokio::test]
+async fn secret_set_then_used_in_request_and_masked() {
+    use wiremock::matchers::header;
+
+    let server = MockServer::start().await;
+    // Only matches when the secret was correctly interpolated into the header.
+    Mock::given(method("GET"))
+        .and(path("/secure"))
+        .and(header("x-token", "s3cr3t-value"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&server)
+        .await;
+
+    let dir = TempDir::new().unwrap();
+    let pass = "test-passphrase";
+
+    // Store the secret (encrypted under REQX_SECRET_KEY).
+    reqx()
+        .arg("secret")
+        .arg("set")
+        .arg("token")
+        .arg("--value")
+        .arg("s3cr3t-value")
+        .env("REQX_SECRET_KEY", pass)
+        .current_dir(dir.path())
+        .assert()
+        .success();
+    assert!(
+        dir.path().join(".reqx/secrets/default.enc").exists(),
+        "encrypted store should be written"
+    );
+
+    // `list` shows the name, never the value.
+    let list = reqx()
+        .arg("secret")
+        .arg("list")
+        .env("REQX_SECRET_KEY", pass)
+        .current_dir(dir.path())
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let list = String::from_utf8(list).unwrap();
+    assert!(list.contains("token"));
+    assert!(!list.contains("s3cr3t-value"));
+
+    // Use the secret in a request header.
+    let file = write_reqx(
+        dir.path(),
+        "secure.reqx",
+        &format!(
+            "[request]\nmethod = \"GET\"\nurl = \"{}/secure\"\n\n[headers]\nX-Token = \"{{{{secret.token}}}}\"\n\n[assert]\nstatus = \"200\"\n",
+            server.uri()
+        ),
+    );
+    let out = reqx()
+        .arg("run")
+        .arg(&file)
+        .arg("--verbose")
+        .env("REQX_SECRET_KEY", pass)
+        .current_dir(dir.path())
+        .assert()
+        .success() // header matched => secret interpolated correctly
+        .get_output()
+        .stdout
+        .clone();
+    let out = String::from_utf8(out).unwrap();
+    assert!(
+        !out.contains("s3cr3t-value"),
+        "secret must be masked in output"
+    );
+}
+
 #[test]
 fn validate_accepts_a_well_formed_file() {
     let dir = TempDir::new().unwrap();

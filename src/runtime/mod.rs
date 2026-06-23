@@ -14,10 +14,12 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
-/// Execution context holding variables and configuration
+/// Execution context holding variables, secrets and configuration
 pub struct ExecutionContext {
     pub config: Config,
     pub variables: HashMap<String, String>,
+    /// Decrypted secrets, referenced as `{{secret.NAME}}`.
+    pub secrets: HashMap<String, String>,
 }
 
 impl ExecutionContext {
@@ -29,7 +31,11 @@ impl ExecutionContext {
             variables.insert(key.clone(), value.clone());
         }
 
-        Self { config, variables }
+        Self {
+            config,
+            variables,
+            secrets: HashMap::new(),
+        }
     }
 
     pub fn set_variable(&mut self, key: String, value: String) {
@@ -80,8 +86,11 @@ impl ExecutionContext {
                 "$date" => chrono::Utc::now().format("%Y-%m-%d").to_string(),
                 "$datetime" => chrono::Utc::now().to_rfc3339(),
                 name => {
-                    // Check if it's an env var reference
-                    if name.starts_with('$') {
+                    if let Some(secret_name) = name.strip_prefix("secret.") {
+                        // Encrypted secret reference: {{secret.NAME}}
+                        self.secrets.get(secret_name).cloned().unwrap_or_default()
+                    } else if name.starts_with('$') {
+                        // Environment variable reference
                         std::env::var(&name[1..]).unwrap_or_default()
                     } else {
                         self.variables.get(name).cloned().unwrap_or_else(|| {

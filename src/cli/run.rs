@@ -10,6 +10,7 @@ use crate::http::Client;
 use crate::output::{JsonFormatter, JunitFormatter, OutputFormatter, TableFormatter, TapFormatter};
 use crate::parser::{parse_file, ReqxFile};
 use crate::runtime::{ExecutionContext, ExecutionResult};
+use crate::secret;
 use anyhow::{Context, Result};
 use colored::Colorize;
 use futures::StreamExt;
@@ -97,8 +98,18 @@ pub async fn execute(options: RunOptions) -> Result<()> {
         config.http.clone(),
     )?);
 
-    // Base execution context (config vars + CLI vars).
+    // Decrypted secrets for {{secret.NAME}} (empty if no store / no passphrase).
+    let secret_env = options.env.as_deref().unwrap_or("default");
+    let secrets = secret::load(secret_env).unwrap_or_default();
+    let secret_values: Vec<String> = secrets
+        .values()
+        .filter(|v| !v.is_empty())
+        .cloned()
+        .collect();
+
+    // Base execution context (config vars + CLI vars + secrets).
     let mut context = ExecutionContext::new(config.clone());
+    context.secrets = secrets.clone().into_iter().collect();
 
     // Add CLI variables
     for (key, value) in &options.var {
@@ -115,7 +126,7 @@ pub async fn execute(options: RunOptions) -> Result<()> {
             let result = execute_request(&client, &mut context, &path, &reqx_file).await;
 
             if options.verbose {
-                print_result_verbose(&result);
+                print_result_verbose(&result, &secret_values);
             }
 
             let failed = result.failed;
@@ -149,6 +160,7 @@ pub async fn execute(options: RunOptions) -> Result<()> {
                     let client = client.clone();
                     let mut local = ExecutionContext::new(config.clone());
                     local.variables = base_vars.clone();
+                    local.secrets = secrets.clone().into_iter().collect();
                     async move {
                         let result = execute_request(&client, &mut local, &path, &reqx_file).await;
                         (idx, result)
@@ -176,7 +188,8 @@ pub async fn execute(options: RunOptions) -> Result<()> {
         }
     };
 
-    let output = formatter.format(&results, total_duration);
+    // Mask any secret value that may have surfaced in URLs/messages.
+    let output = mask_secrets(formatter.format(&results, total_duration), &secret_values);
 
     if let Some(output_file) = options.output_file {
         std::fs::write(&output_file, &output)
@@ -317,18 +330,28 @@ async fn execute_request(
     }
 }
 
-fn print_result_verbose(result: &ExecutionResult) {
+/// Replace any secret value with `***` so they never reach stdout/files.
+fn mask_secrets(mut s: String, secrets: &[String]) -> String {
+    for v in secrets {
+        if !v.is_empty() {
+            s = s.replace(v, "***");
+        }
+    }
+    s
+}
+
+fn print_result_verbose(result: &ExecutionResult, secrets: &[String]) {
     let status_str = result
         .status
         .map(|s| s.to_string())
         .unwrap_or_else(|| "ERR".to_string());
 
-    let color = if result.failed { "red" } else { "green" };
+    let url = mask_secrets(result.url.clone(), secrets);
 
     println!(
         "{} {} {} ({:?})",
         result.method,
-        result.url,
+        url,
         if result.failed {
             status_str.red()
         } else {
