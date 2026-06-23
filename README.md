@@ -103,6 +103,27 @@ access_token = "${API_TOKEN}"  # From environment variable
 reqx run ./tests --env=local
 ```
 
+## Secrets
+
+Keep credentials out of your `.reqx` files with a git-friendly, encrypted store.
+Secrets are encrypted at rest with [age](https://age-encryption.org/) (passphrase),
+so the store can be committed while the passphrase stays out of the repo.
+
+```bash
+export REQX_SECRET_KEY="your-passphrase"   # never written to disk
+reqx secret set api_token                  # value read from stdin (or --value)
+reqx secret list                           # shows names only, never values
+```
+
+```toml
+# requests reference secrets as {{secret.NAME}}
+[headers]
+Authorization = "Bearer {{secret.api_token}}"
+```
+
+Secret values are masked (`***`) in all output. The encrypted store lives in
+`.reqx/secrets/<env>.enc`.
+
 ## CI/CD Integration
 
 ```bash
@@ -137,12 +158,13 @@ reqx run ./tests --env=ci --output=junit --output-file=results.xml
 
 ```bash
 reqx init                          # Initialize collection structure
-reqx run <path>                    # Execute requests
+reqx run <path>                    # Execute requests (--parallel N, --env, --output)
 reqx validate <path>               # Validate syntax
 reqx watch <path>                  # Re-run on file changes
 reqx health <path>                 # Wait for API readiness
-reqx import postman <file>         # Import from Postman
+reqx import postman <file>         # Import from Postman (openapi/curl too)
 reqx export openapi <dir>          # Export to OpenAPI
+reqx secret set <name>             # Manage encrypted secrets (set/list/rm)
 ```
 
 ## Comparison
