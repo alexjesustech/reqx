@@ -35,17 +35,13 @@ pub async fn execute(
             Ok(Ok(events)) => {
                 let reqx_events: Vec<_> = events
                     .iter()
-                    .filter(|e| {
-                        e.path
-                            .extension()
-                            .map_or(false, |ext| ext == "reqx")
-                    })
+                    .filter(|e| e.path.extension().map_or(false, |ext| ext == "reqx"))
                     .collect();
 
                 if !reqx_events.is_empty() {
                     println!("{}", "\n─────────────────────────────────".dimmed());
                     println!("{}", "Changes detected, re-running...".cyan());
-                    
+
                     for event in &reqx_events {
                         println!("  Modified: {}", event.path.display());
                     }

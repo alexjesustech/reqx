@@ -104,7 +104,8 @@ impl ExecutionContext {
                 Ok(serde_json::Value::String(self.interpolate_string(s)?))
             }
             serde_json::Value::Array(arr) => {
-                let new_arr: Result<Vec<_>> = arr.iter().map(|v| self.interpolate_json(v)).collect();
+                let new_arr: Result<Vec<_>> =
+                    arr.iter().map(|v| self.interpolate_json(v)).collect();
                 Ok(serde_json::Value::Array(new_arr?))
             }
             serde_json::Value::Object(obj) => {
@@ -119,7 +120,11 @@ impl ExecutionContext {
     }
 
     /// Run assertions against a response
-    pub fn run_assertions(&self, reqx_file: &ReqxFile, response: &Response) -> Vec<AssertionResult> {
+    pub fn run_assertions(
+        &self,
+        reqx_file: &ReqxFile,
+        response: &Response,
+    ) -> Vec<AssertionResult> {
         let mut results = Vec::new();
 
         for assertion in &reqx_file.assertions {
@@ -156,7 +161,10 @@ impl ExecutionContext {
         }
 
         // Handle body assertions
-        if expression == "body" || expression.starts_with("body.") || expression.starts_with("body[") {
+        if expression == "body"
+            || expression.starts_with("body.")
+            || expression.starts_with("body[")
+        {
             return self.evaluate_body_assertion(expression, expected, response);
         }
 
@@ -168,7 +176,7 @@ impl ExecutionContext {
             return AssertionResult {
                 expression: expression.clone(),
                 expected: expected.clone(),
-                actual,
+                actual: actual.clone(),
                 passed,
                 message: if passed {
                     format!("{} = {}", expression, expected)

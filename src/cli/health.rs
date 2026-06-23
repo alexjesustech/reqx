@@ -18,12 +18,15 @@ use tokio::time::sleep;
 pub async fn execute(path: PathBuf, retries: u32, retry_delay: u64, timeout: u64) -> Result<()> {
     println!("{}", "Waiting for API to be ready...".cyan());
     println!("Health check: {}", path.display());
-    println!("Max retries: {}, delay: {}ms, timeout: {}ms", retries, retry_delay, timeout);
+    println!(
+        "Max retries: {}, delay: {}ms, timeout: {}ms",
+        retries, retry_delay, timeout
+    );
     println!();
 
     let config = Config::load(None)?;
     let reqx_file = parse_file(&path)?;
-    
+
     let client = Arc::new(Client::new(timeout, 0, 0, config.http.clone())?);
     let mut context = ExecutionContext::new(config);
 

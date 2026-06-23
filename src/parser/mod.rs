@@ -4,8 +4,8 @@
 
 //! Parser module for .reqx files
 
-mod lexer;
 mod ast;
+mod lexer;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};

@@ -20,7 +20,12 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new(timeout_ms: u64, retries: u32, retry_delay_ms: u64, config: HttpConfig) -> Result<Self> {
+    pub fn new(
+        timeout_ms: u64,
+        retries: u32,
+        retry_delay_ms: u64,
+        config: HttpConfig,
+    ) -> Result<Self> {
         let mut builder = reqwest::Client::builder()
             .timeout(Duration::from_millis(timeout_ms))
             .connect_timeout(Duration::from_secs(10));
@@ -32,8 +37,7 @@ impl Client {
         }
 
         if let Some(proxy_url) = &config.proxy {
-            let proxy = reqwest::Proxy::all(proxy_url)
-                .context("Invalid proxy URL")?;
+            let proxy = reqwest::Proxy::all(proxy_url).context("Invalid proxy URL")?;
             builder = builder.proxy(proxy);
         }
 
@@ -98,8 +102,8 @@ impl Client {
         // Build headers
         let mut headers = HeaderMap::new();
         for (key, value) in &reqx_file.headers {
-            let header_name = HeaderName::from_str(key)
-                .map_err(|_| RequestError::InvalidHeader(key.clone()))?;
+            let header_name =
+                HeaderName::from_str(key).map_err(|_| RequestError::InvalidHeader(key.clone()))?;
             let header_value = HeaderValue::from_str(value)
                 .map_err(|_| RequestError::InvalidHeader(key.clone()))?;
             headers.insert(header_name, header_value);
@@ -146,9 +150,8 @@ impl Client {
             .await
             .map_err(|e| RequestError::Network(e.to_string()))?;
 
-        let body: serde_json::Value = serde_json::from_str(&body_text).unwrap_or_else(|_| {
-            serde_json::Value::String(body_text)
-        });
+        let body: serde_json::Value = serde_json::from_str(&body_text)
+            .unwrap_or_else(|_| serde_json::Value::String(body_text));
 
         let duration = start.elapsed();
 
@@ -179,11 +182,5 @@ pub enum RequestError {
 impl RequestError {
     pub fn is_network_error(&self) -> bool {
         matches!(self, Self::Network(_) | Self::Timeout)
-    }
-}
-
-impl From<RequestError> for anyhow::Error {
-    fn from(err: RequestError) -> Self {
-        anyhow::anyhow!("{}", err)
     }
 }

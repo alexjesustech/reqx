@@ -41,7 +41,12 @@ pub async fn execute(path: PathBuf, strict: bool) -> Result<()> {
                 if file_warnings.is_empty() {
                     println!("  {} {}", "✓".green(), file_path.display());
                 } else {
-                    println!("  {} {} ({} warning(s))", "⚠".yellow(), file_path.display(), file_warnings.len());
+                    println!(
+                        "  {} {} ({} warning(s))",
+                        "⚠".yellow(),
+                        file_path.display(),
+                        file_warnings.len()
+                    );
                     for warning in &file_warnings {
                         println!("    {}", warning.yellow());
                         warnings += 1;

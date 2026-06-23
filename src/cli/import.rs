@@ -26,8 +26,8 @@ async fn import_postman(path: &PathBuf) -> Result<()> {
     let content = fs::read_to_string(path)
         .with_context(|| format!("Failed to read file: {}", path.display()))?;
 
-    let collection: serde_json::Value = serde_json::from_str(&content)
-        .context("Failed to parse Postman collection")?;
+    let collection: serde_json::Value =
+        serde_json::from_str(&content).context("Failed to parse Postman collection")?;
 
     let items = collection
         .get("item")
@@ -87,7 +87,10 @@ async fn import_openapi(path: &PathBuf) -> Result<()> {
     let content = fs::read_to_string(path)
         .with_context(|| format!("Failed to read file: {}", path.display()))?;
 
-    let spec: serde_json::Value = if path.extension().map_or(false, |e| e == "yaml" || e == "yml") {
+    let spec: serde_json::Value = if path
+        .extension()
+        .map_or(false, |e| e == "yaml" || e == "yml")
+    {
         // TODO: Add YAML support
         anyhow::bail!("YAML OpenAPI files not yet supported. Please convert to JSON.");
     } else {
@@ -152,7 +155,11 @@ status = 200
     }
 
     println!();
-    println!("{} endpoint(s) imported to {}/", count, output_dir.display());
+    println!(
+        "{} endpoint(s) imported to {}/",
+        count,
+        output_dir.display()
+    );
 
     Ok(())
 }

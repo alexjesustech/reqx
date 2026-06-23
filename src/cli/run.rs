@@ -6,7 +6,7 @@
 
 use crate::config::Config;
 use crate::http::Client;
-use crate::output::{OutputFormatter, TableFormatter, JsonFormatter, JunitFormatter, TapFormatter};
+use crate::output::{JsonFormatter, JunitFormatter, OutputFormatter, TableFormatter, TapFormatter};
 use crate::parser::{parse_file, ReqxFile};
 use crate::runtime::{ExecutionContext, ExecutionResult};
 use anyhow::{Context, Result};
@@ -40,10 +40,14 @@ pub struct RunOptions {
 pub async fn execute(options: RunOptions) -> Result<()> {
     // Load configuration
     let config = Config::load(options.env.as_deref())?;
-    
+
     // Discover files to run
-    let files = discover_files(&options.path, options.filter.as_deref(), options.exclude.as_deref())?;
-    
+    let files = discover_files(
+        &options.path,
+        options.filter.as_deref(),
+        options.exclude.as_deref(),
+    )?;
+
     if files.is_empty() {
         println!("{}", "No .reqx files found".yellow());
         return Ok(());
@@ -87,7 +91,7 @@ pub async fn execute(options: RunOptions) -> Result<()> {
 
     // Create execution context
     let mut context = ExecutionContext::new(config);
-    
+
     // Add CLI variables
     for (key, value) in &options.var {
         context.set_variable(key.clone(), value.clone());
@@ -101,14 +105,14 @@ pub async fn execute(options: RunOptions) -> Result<()> {
         // Sequential execution
         for (path, reqx_file) in parsed_files {
             let result = execute_request(&client, &mut context, &path, &reqx_file).await;
-            
+
             if options.verbose {
                 print_result_verbose(&result);
             }
-            
+
             let failed = result.failed;
             results.push(result);
-            
+
             if failed && options.fail_fast {
                 break;
             }
@@ -181,7 +185,7 @@ fn discover_files(
                             continue;
                         }
                     }
-                    
+
                     // Apply exclude
                     if let Some(exclude_pattern) = exclude {
                         let glob_pattern = glob::Pattern::new(exclude_pattern)?;
@@ -189,7 +193,7 @@ fn discover_files(
                             continue;
                         }
                     }
-                    
+
                     files.push(file_path);
                 }
                 Err(e) => {
@@ -210,7 +214,7 @@ async fn execute_request(
     reqx_file: &ReqxFile,
 ) -> ExecutionResult {
     let start = Instant::now();
-    
+
     // Interpolate variables
     let interpolated = match context.interpolate(reqx_file) {
         Ok(r) => r,
@@ -273,9 +277,9 @@ fn print_result_verbose(result: &ExecutionResult) {
         .status
         .map(|s| s.to_string())
         .unwrap_or_else(|| "ERR".to_string());
-    
+
     let color = if result.failed { "red" } else { "green" };
-    
+
     println!(
         "{} {} {} ({:?})",
         result.method,

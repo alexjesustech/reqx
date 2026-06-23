@@ -61,11 +61,7 @@ impl OutputFormatter for TableFormatter {
 
             output.push_str(&format!(
                 "{} {} {} {} ({:?})\n",
-                icon_display,
-                result.method,
-                result.url,
-                status_display,
-                result.duration
+                icon_display, result.method, result.url, status_display, result.duration
             ));
 
             // Show assertion details for failures
