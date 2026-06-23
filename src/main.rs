@@ -8,6 +8,7 @@
 
 mod cli;
 mod config;
+mod error;
 mod http;
 mod output;
 mod parser;

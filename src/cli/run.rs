@@ -5,6 +5,7 @@
 //! Execute API requests
 
 use crate::config::Config;
+use crate::error::exit;
 use crate::http::Client;
 use crate::output::{JsonFormatter, JunitFormatter, OutputFormatter, TableFormatter, TapFormatter};
 use crate::parser::{parse_file, ReqxFile};
@@ -39,8 +40,14 @@ pub struct RunOptions {
 }
 
 pub async fn execute(options: RunOptions) -> Result<()> {
-    // Load configuration
-    let config = Config::load(options.env.as_deref())?;
+    // Load configuration (config/environment problems are exit code 4).
+    let config = match Config::load(options.env.as_deref()) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("{}: {}", "config error".red(), e);
+            std::process::exit(exit::CONFIG_ERROR);
+        }
+    };
 
     // Discover files to run
     let files = discover_files(
@@ -68,7 +75,7 @@ pub async fn execute(options: RunOptions) -> Result<()> {
             Err(e) => {
                 eprintln!("{}: {}", file_path.display().to_string().red(), e);
                 if options.fail_fast {
-                    std::process::exit(3);
+                    std::process::exit(exit::PARSE_ERROR);
                 }
             }
         }
@@ -164,9 +171,8 @@ pub async fn execute(options: RunOptions) -> Result<()> {
         OutputFormat::Junit => Box::new(JunitFormatter::new()),
         OutputFormat::Tap => Box::new(TapFormatter::new()),
         OutputFormat::Silent => {
-            // Just return exit code
-            let failed = results.iter().any(|r| r.failed);
-            std::process::exit(if failed { 1 } else { 0 });
+            // Just return exit code (execution errors outrank assertion failures).
+            std::process::exit(exit_code_for(&results));
         }
     };
 
@@ -180,15 +186,25 @@ pub async fn execute(options: RunOptions) -> Result<()> {
         println!("{}", output);
     }
 
-    // Exit with appropriate code
-    let passed = results.iter().filter(|r| !r.failed).count();
-    let failed = results.iter().filter(|r| r.failed).count();
-
-    if failed > 0 {
-        std::process::exit(1);
+    // Exit with the CI-contract code (execution error > assertion failure).
+    let code = exit_code_for(&results);
+    if code != exit::OK {
+        std::process::exit(code);
     }
 
     Ok(())
+}
+
+/// Map a run's results to the exit-code contract: an execution error (a
+/// request that could not run) outranks an assertion failure.
+fn exit_code_for(results: &[ExecutionResult]) -> i32 {
+    if results.iter().any(|r| r.error.is_some()) {
+        exit::EXECUTION_ERROR
+    } else if results.iter().any(|r| r.failed) {
+        exit::ASSERTION_FAILED
+    } else {
+        exit::OK
+    }
 }
 
 fn discover_files(

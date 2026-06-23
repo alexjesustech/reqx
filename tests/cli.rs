@@ -279,6 +279,41 @@ async fn run_parallel_executes_a_directory() {
 }
 
 #[test]
+fn run_execution_error_exits_2() {
+    // Port 1 has no listener -> connection refused -> execution error.
+    let dir = TempDir::new().unwrap();
+    let file = write_reqx(
+        dir.path(),
+        "down.reqx",
+        "[request]\nmethod = \"GET\"\nurl = \"http://127.0.0.1:1/x\"\n\n[assert]\nstatus = \"200\"\n",
+    );
+    reqx()
+        .arg("run")
+        .arg(&file)
+        .current_dir(dir.path())
+        .assert()
+        .code(2);
+}
+
+#[test]
+fn run_missing_environment_exits_4() {
+    let dir = TempDir::new().unwrap();
+    let file = write_reqx(
+        dir.path(),
+        "x.reqx",
+        "[request]\nmethod = \"GET\"\nurl = \"https://example.com/x\"\n\n[assert]\nstatus = \"200\"\n",
+    );
+    reqx()
+        .arg("run")
+        .arg(&file)
+        .arg("--env")
+        .arg("does-not-exist")
+        .current_dir(dir.path())
+        .assert()
+        .code(4);
+}
+
+#[test]
 fn validate_accepts_a_well_formed_file() {
     let dir = TempDir::new().unwrap();
     let file = write_reqx(
