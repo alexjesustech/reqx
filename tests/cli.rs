@@ -184,6 +184,58 @@ status = "200"
     assert!(text.contains("status"), "json output should mention status");
 }
 
+#[tokio::test]
+async fn run_wildcard_asserts_all_elements() {
+    let server = MockServer::start().await;
+    // All items active => wildcard assertion passes.
+    Mock::given(method("GET"))
+        .and(path("/ok"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(
+            serde_json::json!({ "items": [ { "active": true }, { "active": true } ] }),
+        ))
+        .mount(&server)
+        .await;
+    // One item inactive => wildcard assertion fails.
+    Mock::given(method("GET"))
+        .and(path("/bad"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(
+            serde_json::json!({ "items": [ { "active": true }, { "active": false } ] }),
+        ))
+        .mount(&server)
+        .await;
+
+    let dir = TempDir::new().unwrap();
+    let pass = write_reqx(
+        dir.path(),
+        "all.reqx",
+        &format!(
+            "[request]\nmethod = \"GET\"\nurl = \"{}/ok\"\n\n[assert]\n\"body.items[*].active\" = \"true\"\n",
+            server.uri()
+        ),
+    );
+    reqx()
+        .arg("run")
+        .arg(&pass)
+        .current_dir(dir.path())
+        .assert()
+        .success();
+
+    let fail = write_reqx(
+        dir.path(),
+        "notall.reqx",
+        &format!(
+            "[request]\nmethod = \"GET\"\nurl = \"{}/bad\"\n\n[assert]\n\"body.items[*].active\" = \"true\"\n",
+            server.uri()
+        ),
+    );
+    reqx()
+        .arg("run")
+        .arg(&fail)
+        .current_dir(dir.path())
+        .assert()
+        .code(1);
+}
+
 #[test]
 fn validate_accepts_a_well_formed_file() {
     let dir = TempDir::new().unwrap();

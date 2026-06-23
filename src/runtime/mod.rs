@@ -231,23 +231,39 @@ impl ExecutionContext {
 
         // JSONPath-like assertion
         let path = expression.strip_prefix("body").unwrap_or(expression);
+
+        // Wildcard paths (e.g. `body.items[*].id`) expand to every matching
+        // element; the assertion holds only when ALL of them satisfy it.
+        if path.contains("[*]") {
+            let values = extract_json_path_multi(&response.body, path);
+            let (passed, actual) = if values.is_empty() {
+                (expected == "!exists", None)
+            } else {
+                let all = values.iter().all(|v| value_satisfies(v, expected));
+                let rendered = values
+                    .iter()
+                    .map(|v| json_value_to_string(v))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                (all, Some(format!("[{}]", rendered)))
+            };
+            return AssertionResult {
+                expression: expression.to_string(),
+                expected: expected.to_string(),
+                actual,
+                passed,
+                message: if passed {
+                    format!("{} = {} (all {} match)", expression, expected, values.len())
+                } else {
+                    format!("{}: expected all to be {}", expression, expected)
+                },
+            };
+        }
+
         let value = extract_json_path(&response.body, path);
 
         let (passed, actual) = match value {
-            Some(v) => {
-                let actual_str = json_value_to_string(&v);
-                let passed = match expected {
-                    "exists" => true,
-                    "is_array" => v.is_array(),
-                    "is_object" => v.is_object(),
-                    "is_string" => v.is_string(),
-                    "is_number" => v.is_number(),
-                    "is_uuid" => is_uuid(&actual_str),
-                    "is_iso8601" => is_iso8601(&actual_str),
-                    _ => actual_str == *expected,
-                };
-                (passed, Some(actual_str))
-            }
+            Some(v) => (value_satisfies(v, expected), Some(json_value_to_string(v))),
             None => {
                 let passed = expected == "!exists";
                 (passed, None)
@@ -370,6 +386,60 @@ pub struct ExecutionResult {
 }
 
 // Helper functions
+
+/// Whether a single JSON value satisfies an assertion's expected token
+/// (`exists`, `is_array`, `is_uuid`, … or a literal equality).
+fn value_satisfies(v: &serde_json::Value, expected: &str) -> bool {
+    let actual_str = json_value_to_string(v);
+    match expected {
+        "exists" => true,
+        "is_array" => v.is_array(),
+        "is_object" => v.is_object(),
+        "is_string" => v.is_string(),
+        "is_number" => v.is_number(),
+        "is_uuid" => is_uuid(&actual_str),
+        "is_iso8601" => is_iso8601(&actual_str),
+        _ => actual_str == *expected,
+    }
+}
+
+/// Like `extract_json_path` but expands `[*]` wildcards, returning every
+/// matching node (cartesian over arrays/objects). Empty when nothing matches.
+fn extract_json_path_multi<'a>(
+    json: &'a serde_json::Value,
+    path: &str,
+) -> Vec<&'a serde_json::Value> {
+    let path = path.trim_start_matches('.');
+    let mut current: Vec<&serde_json::Value> = vec![json];
+
+    for segment in &split_path(path) {
+        let mut next: Vec<&serde_json::Value> = Vec::new();
+        for node in current {
+            match segment {
+                PathSegment::Property(name) => {
+                    if let Some(v) = node.get(name) {
+                        next.push(v);
+                    }
+                }
+                PathSegment::Index(idx) => {
+                    if let Some(v) = node.get(idx) {
+                        next.push(v);
+                    }
+                }
+                PathSegment::Wildcard => {
+                    if let Some(arr) = node.as_array() {
+                        next.extend(arr.iter());
+                    } else if let Some(obj) = node.as_object() {
+                        next.extend(obj.values());
+                    }
+                }
+            }
+        }
+        current = next;
+    }
+
+    current
+}
 
 fn extract_json_path<'a>(json: &'a serde_json::Value, path: &str) -> Option<&'a serde_json::Value> {
     if path.is_empty() {
